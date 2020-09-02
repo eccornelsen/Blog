@@ -2,6 +2,7 @@ from scipy.io import arff
 import pandas as pd
 from sktime.utils.data_container import is_nested_dataframe
 from sktime.utils.data_container import detabularize
+from sktime.utils.load_data import load_from_arff_to_dataframe
 from sktime.classification.distance_based import KNeighborsTimeSeriesClassifier
 
 
@@ -31,6 +32,10 @@ def main():
     print(X_train_detab.head())
     print('Is nested the detabularized df above?', is_nested_dataframe(X_train_detab), '\n')
 
+    #The lines above could be simplified with the following method from sktime
+    X, y = load_from_arff_to_dataframe('ItalyPowerDemand_TRAIN.arff')
+    print(X_train_detab.head(), X.head(), type(y_train), type(y))
+    
     #Classifier algorithm
     knn = KNeighborsTimeSeriesClassifier(n_neighbors=1, metric="dtw")
     knn.fit(X_train_detab, y_train)
