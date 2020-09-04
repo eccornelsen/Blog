@@ -31,52 +31,36 @@ def main():
     #1. Loading and splitting the dataset
     X_train, y_train = load_italy_power_demand(split='train', return_X_y=True)
     X_test, y_test = load_italy_power_demand(split='test', return_X_y=True)
-    print('Shape of X, y train and test dataset',X_train.shape, y_train.shape, X_test.shape, y_test.shape, end='\n')
-    print('X_train:', X_train.head(), end='\n')
-    print(X_train.info(), end='\n')
+    print('Shape of X, y train and test dataset',X_train.shape, y_train.shape, X_test.shape, y_test.shape, '\n')
+    print('X_train:', X_train.head(), '\n')
+    print('\nX_train info', X_train.info(), '\n')
     
     labels, counts = np.unique(y_train, return_counts=True)
-    print('\nThere are',labels, 'labels in this dataset. The counter of each one is', counts, end='\n')
+    print('\nThere are',labels, 'labels in this dataset, one corresponds to winter and the other to summer. The counter of each one is', counts, '\n')
     
-    """
-    #2. Plotting the classification labels
-    fig, ax = plt.subplots(1, figsize=plt.figaspect(.25))
-    for label in labels:
-        X_train.loc[y_train == label, "dim_0"].iloc[0].plot(ax=ax, label=f"class {label}")
-    plt.legend()
-    ax.set(title="Example time series", xlabel="Time");
-    plt.show()
-    """
-    #3. Creating a Model, Fit and Predict Sklearn Classifier
-    #3.1.1 Sktime Tabularizing the data
+    #2. Creating a Model, Fit and Predict Sklearn Classifier
+    #Sktime Tabularizing the data
     X_train_tab = tabularize(X_train)
     X_test_tab = tabularize(X_test)
-    print('\n X_train tabularized\n',X_train_tab.head(), end='\n')
+    print('\n X_train tabularized\n',X_train_tab.head(), '\n')
 
-    #3.1.2 SKlearn RandomForest Classifier
+    #2.1 SKlearn RandomForest Classifier
     classifier = RandomForestClassifier(n_estimators=100)
     classifier.fit(X_train_tab, y_train)
     y_pred = classifier.predict(X_test_tab)
-    print('Accuracy sklearn RandomForestClassifier',round(accuracy_score(y_test, y_pred),4), end='\n')
+    print('Accuracy sklearn RandomForestClassifier',round(accuracy_score(y_test, y_pred),4), '\n')
     
-    #3.2.1 Same SKlearn as above but using make_pipeline w/ Sktime Tabularizer 
+    #2.2 Same SKlearn as above but using make_pipeline w/ Sktime Tabularizer 
     classifier = make_pipeline(Tabularizer(), RandomForestClassifier(n_estimators=100), verbose=True)
     classifier.fit(X_train, y_train)
-    print(classifier.score(X_test, y_test), end='\n')
-    
-    sys.exit()
-    #4. Feature extraction from the Time-series
-    transformer = TSFreshFeatureExtractor(default_fc_parameters="minimal")
-    extracted_features = transformer.fit_transform(X_train)
-    print(extracted_features.head(), end='\n')
-    
-    #4.1 Sklearn using make_pipeline w/ Sktime TSFreshFeatureExtractor
+    print('Accuracy sklearn RandomForestClassifier using sklearn make_pipeline in which the first step is to sktime Tabularize()', round(classifier.score(X_test, y_test),4), '\n')
+     
+    #3 Sklearn using make_pipeline w/ Sktime TSFreshFeatureExtractor
     classifier = make_pipeline(TSFreshFeatureExtractor(show_warnings=False), RandomForestClassifier(n_estimators=100))
     classifier.fit(X_train, y_train)
-    print(classifier.score(X_test, y_test), end='\n')
-
-    #5. Using Time series algorithms and classifiers from sklearn/sktime
-    #5.1 
+    print('Accuracy sklearn RandomForestClassifier using sklearn make_pipeline in which the first step is to sktime TSFreshFeatureExtractor that automatically extracts and filters several key statistical features from the nested X_train time series', round(classifier.score(X_test, y_test),4), '\n')
+    
+    #4. Using Time series algorithms and classifiers from sklearn/sktime 
     steps = [
         ('segment', RandomIntervalSegmenter(n_intervals='sqrt')), #Sktime
         ('transform', FeatureUnion([ #Sklearn
@@ -86,23 +70,17 @@ def main():
         ])),
         ('clf', DecisionTreeClassifier()) #From Sklearn
     ]
-    time_series_tree = Pipeline(steps) #sklearn 
+    time_series_tree = Pipeline(steps, verbose=True) #sklearn 
     time_series_tree.fit(X_train, y_train)
-    print(time_series_tree.score(X_test, y_test))
-
-    #6. Using Time series Sktime
+    print('Accuracy sklearn DecisionTreeClassifier using sklearn Pipeline() as well as segmentation and transformation techniques from sktime and sklearn', round(time_series_tree.score(X_test, y_test),4))
+    
+    #5. Using Time series Sktime
     tsf = TimeSeriesForestClassifier(
-        estimator=time_series_tree,
         n_estimators=100,
-        criterion='entropy',
-        bootstrap=True,
-        oob_score=True,
-        random_state=1
+        verbose=True
     )
-
     tsf.fit(X_train, y_train)
-    print(tsf.score(X_test, y_test))
-
+    print('Accuracy sktime TimeSeriesForestClassifier',round(tsf.score(X_test, y_test),4))
 
 if __name__ == '__main__':
     main()
